@@ -29,6 +29,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  permission_handler: ^8.3.0  #권한을 가져오기 위한 패키기 설치
+  contacts_service: ^0.6.3    #연락처 꺼내는 패키지 설치
 
 
   # The following adds the Cupertino Icons font to your application.
