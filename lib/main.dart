@@ -32,15 +32,7 @@ class _HomePageState extends State<HomePage> {
     //연락처 권한을 줬을 때
     if (status.isGranted) {
       print('허락됨');
-      //폰의 연락처를 어플로 가져오기
-      var contacts = await ContactsService.getContacts();
-      setState(() {
-        //name = contacts;
-      });
-      //폰에 연락처 강제로 추가하기
-      var newPerson = Contact();
-      newPerson.givenName = '김민수';
-      ContactsService.addContact(newPerson);
+      takecontent();
     }
     //연락처 권한을 안줬을 때
     else if (status.isDenied) {
@@ -53,6 +45,27 @@ class _HomePageState extends State<HomePage> {
       //앱 설정 화면을 켜줌//직접 사용자가 권한을 설정하라고.
       openAppSettings();
     }
+  }
+
+  //폰의 연락처를 어플로 가져오는 함수
+  takecontent() async {
+    //폰의 연락처를 어플로 가져오기
+    var contacts = await ContactsService.getContacts(withThumbnails: false);
+
+    //contacts[0].phones = [Item(label:mobile, value:전화번호), Item(label:home, value:전화번호)]
+
+    //contacts의 리스트 개수만큼 반복문 실행.
+    for (int i = 0; i < contacts.length; i++) {
+      nameadd(contacts[i].givenName.toString());
+      numberadd(contacts[i].phones![0].value.toString());
+    }
+  }
+
+  //FAB에서 OK 버튼 누르면 ListTile에 신규 contact가 추가 됨과 동시에, 핸드폰의 주소록에도 추가.
+  addatphone(String name, String num) async {
+    List<Item> number = [Item(label: 'mobile', value: num)];
+    var newcontacts = Contact(givenName: name, phones: number);
+    await ContactsService.addContact(newcontacts);
   }
 
   //위젯이 로드 될 때, 최초 1회 실행.
@@ -112,7 +125,10 @@ class _HomePageState extends State<HomePage> {
               context: context,
               barrierDismissible: false,
               builder: (context) {
-                return DialogUI(nameadd: nameadd, numberadd: numberadd);
+                return DialogUI(
+                    nameadd: nameadd,
+                    numberadd: numberadd,
+                    addatphone: addatphone);
               });
         },
       ),
@@ -260,12 +276,14 @@ class _HomePageState extends State<HomePage> {
 //DialogUI Custom Widget
 // ignore: must_be_immutable
 class DialogUI extends StatelessWidget {
-  DialogUI({Key? key, this.nameadd, this.numberadd}) : super(key: key);
+  DialogUI({Key? key, this.nameadd, this.numberadd, this.addatphone})
+      : super(key: key);
   var inputNameData = TextEditingController();
   var inputNumberData = TextEditingController();
 
   final nameadd;
   final numberadd;
+  final addatphone;
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -302,6 +320,7 @@ class DialogUI extends StatelessWidget {
               } else {
                 nameadd(inputNameData.text);
                 numberadd(inputNumberData.text);
+                addatphone(inputNameData.text, inputNumberData.text);
               }
             },
             child: Text('Ok'))
