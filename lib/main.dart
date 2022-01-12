@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart'; //온갖거 모든 권한을 가져오기 위한 라이브러리(패키지)
+import 'package:contacts_service/contacts_service.dart'; //연락처를 꺼내기 위한 라이브러리(패키지)
 
 void main() => runApp(MyApp());
 
@@ -23,22 +25,75 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  //권한을 가져오는 함수(복붙하기)(패키지 사용법임)
+  getPermission() async {
+    //연락처 권한 줬는지 여부 상태
+    var status = await Permission.contacts.status;
+    //연락처 권한을 줬을 때
+    if (status.isGranted) {
+      print('허락됨');
+      takecontent();
+    }
+    //연락처 권한을 안줬을 때
+    else if (status.isDenied) {
+      print('거절됨');
+      //연락처 권한 허락해달라고 팝업 띄우는 코드
+      Permission.contacts.request();
+    }
+    //아예 앱 설정해서 권한을 꺼놓은 경우
+    else if (status.isPermanentlyDenied) {
+      //앱 설정 화면을 켜줌//직접 사용자가 권한을 설정하라고.
+      openAppSettings();
+    }
+  }
 
-  var like = [0, 0, 0];
+  //폰의 연락처를 어플로 가져오는 함수
+  takecontent() async {
+    //폰의 연락처를 어플로 가져오기
+    var contacts = await ContactsService.getContacts(withThumbnails: false);
+
+    //contacts[0].phones = [Item(label:mobile, value:전화번호), Item(label:home, value:전화번호)]
+
+    //contacts의 리스트 개수만큼 반복문 실행.
+    for (int i = 0; i < contacts.length; i++) {
+      nameadd(contacts[i].givenName.toString());
+      numberadd(contacts[i].phones![0].value.toString());
+    }
+  }
+
+  //FAB에서 OK 버튼 누르면 ListTile에 신규 contact가 추가 됨과 동시에, 핸드폰의 주소록에도 추가.
+  addatphone(String name, String num) async {
+    List<Item> number = [Item(label: 'mobile', value: num)];
+    var newcontacts = Contact(givenName: name, phones: number);
+    await ContactsService.addContact(newcontacts);
+  }
+
+  //위젯이 로드 될 때, 최초 1회 실행.
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   getPermission();
+  // }
+
   var total = 0;
-  var name = [['빠더','01071557680'],['어마마마','01023527680'],['브라더','01036257670']];
-
+  var name = [
+    ['빠더', '01071557680'],
+    ['어마마마', '01023527680'],
+    ['브라더', '01036257670']
+  ];
   //부모 state를 자식(DialogUI)이 수정할 수 있도록 하는 함수. => 자식위젯에 전달, 등록, 사용
   nameadd(String a) {
     setState(() {
-      name.add(List.generate(2, (index) => 'null')); //2d리스트에 1d리스트(['null','null']) 추가
+      name.add(List.generate(
+          2, (index) => 'null')); //2d리스트에 1d리스트(['null','null']) 추가
       debugPrint(name.length.toString());
-      name[name.length-1][0]=a; //추가한 ['null','null']의 인덱스0 요소를 'a'로 바꿈.
+      name[name.length - 1][0] = a; //추가한 ['null','null']의 인덱스0 요소를 'a'로 바꿈.
     });
   }
-  numberadd(String b){
+
+  numberadd(String b) {
     setState(() {
-      name[name.length-1][1]=b;
+      name[name.length - 1][1] = b;
     });
   }
 
@@ -55,7 +110,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       //sort() 리스트 정렬 함수.
       //인덱스0 1d리스트[0] 과, 인덱스1 1d리스트[0]을 비교해서 오름차순 정렬.
-      a.sort((a,b)=>a[0].compareTo(b[0]));
+      a.sort((a, b) => a[0].compareTo(b[0]));
     });
   }
 
@@ -70,13 +125,16 @@ class _HomePageState extends State<HomePage> {
               context: context,
               barrierDismissible: false,
               builder: (context) {
-                return DialogUI(nameadd: nameadd, numberadd: numberadd);
+                return DialogUI(
+                    nameadd: nameadd,
+                    numberadd: numberadd,
+                    addatphone: addatphone);
               });
         },
       ),
       appBar: AppBar(
         backgroundColor: Colors.redAccent,
-        title: Text('CONTACT'),
+        title: Text('CONTACTS'),
         centerTitle: true,
         elevation: 0.0,
         //actions: appbar에서 오른쪽에 위치한 아이콘
@@ -90,9 +148,10 @@ class _HomePageState extends State<HomePage> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.search),
+            icon: Icon(Icons.contacts),
             onPressed: () {
               print('search icon is clicked');
+              getPermission();
             },
           )
         ],
@@ -198,11 +257,14 @@ class _HomePageState extends State<HomePage> {
                         });
                   },
                 ),
-                onTap: (){
+                onTap: () {
                   debugPrint(name[i].toString());
-                  showDialog(barrierDismissible: false,context: context, builder: (context){
-                    return DetailDialogUI(index:i, name:name);
-                  });
+                  showDialog(
+                      barrierDismissible: false,
+                      context: context,
+                      builder: (context) {
+                        return DetailDialogUI(index: i, name: name);
+                      });
                 },
               ),
             );
@@ -214,12 +276,14 @@ class _HomePageState extends State<HomePage> {
 //DialogUI Custom Widget
 // ignore: must_be_immutable
 class DialogUI extends StatelessWidget {
-  DialogUI({Key? key, this.nameadd, this.numberadd}) : super(key: key);
+  DialogUI({Key? key, this.nameadd, this.numberadd, this.addatphone})
+      : super(key: key);
   var inputNameData = TextEditingController();
   var inputNumberData = TextEditingController();
 
   final nameadd;
   final numberadd;
+  final addatphone;
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -228,12 +292,14 @@ class DialogUI extends StatelessWidget {
         height: 100,
         child: Column(
           children: [
-          TextField(
-          controller: inputNameData,
-          decoration: InputDecoration(hintText: 'add Name'),),
+            TextField(
+              controller: inputNameData,
+              decoration: InputDecoration(hintText: 'add Name'),
+            ),
             TextField(
               controller: inputNumberData,
-              decoration: InputDecoration(hintText: 'add phone number'),),
+              decoration: InputDecoration(hintText: 'add phone number'),
+            ),
           ],
         ),
       ),
@@ -247,10 +313,14 @@ class DialogUI extends StatelessWidget {
             onPressed: () {
               Navigator.pop(context);
               //string null, OR, start with '(blank)',  do not make listTile
-              if (inputNameData.text.isEmpty || inputNameData.text.startsWith(' ')||inputNumberData.text.isEmpty || inputNumberData.text.startsWith(' ')) {
+              if (inputNameData.text.isEmpty ||
+                  inputNameData.text.startsWith(' ') ||
+                  inputNumberData.text.isEmpty ||
+                  inputNumberData.text.startsWith(' ')) {
               } else {
                 nameadd(inputNameData.text);
                 numberadd(inputNumberData.text);
+                addatphone(inputNameData.text, inputNumberData.text);
               }
             },
             child: Text('Ok'))
@@ -306,7 +376,6 @@ class DeleteDialogUI extends StatelessWidget {
   }
 }
 
-
 //DetailDialogUI Custom Widget : Card: ListTile : onTap()
 class DetailDialogUI extends StatelessWidget {
   const DetailDialogUI({Key? key, this.index, this.name}) : super(key: key);
@@ -316,26 +385,29 @@ class DetailDialogUI extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(name[index][0].toString(),
-      style: TextStyle(
-        fontWeight: FontWeight.bold
-      )),
+          style: TextStyle(fontWeight: FontWeight.bold)),
       content: SizedBox(
         height: 50,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(('Tel.'), style: TextStyle(
-              fontWeight: FontWeight.bold
-            ),),
-            SizedBox(height: 5,),
+            Text(
+              ('Tel.'),
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(
+              height: 5,
+            ),
             Text(name[index][1].toString()),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: (){
-          Navigator.pop(context);
-        }, child: Text('Done'))
+        TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: Text('Done'))
       ],
     );
   }
