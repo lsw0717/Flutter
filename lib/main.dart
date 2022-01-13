@@ -75,8 +75,7 @@ class _HomePageState extends State<HomePage> {
   //   getPermission();
   // }
 
-  var total = 0;
-  var name = [
+  List<List<String>> name = [
     ['빠더', '01071557680'],
     ['어마마마', '01023527680'],
     ['브라더', '01036257670']
